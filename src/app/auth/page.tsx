@@ -5,8 +5,12 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { FcGoogle } from "react-icons/fc";
+import { getSession, signIn } from "next-auth/react";
 import { FaGithub } from "react-icons/fa";
 import { BaseSyntheticEvent, useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
+import { api } from "../../lib/axios";
 
 /* eslint-disable @next/next/no-img-element */
 const formSchema = z
@@ -29,6 +33,7 @@ const formSchema = z
 type LoginFormData = z.infer<typeof formSchema>;
 
 const Auth = () => {
+  const router = useRouter();
   const {
     handleSubmit,
     control,
@@ -41,23 +46,42 @@ const Auth = () => {
   });
 
   const isRegister = watch("register");
+  const email = watch("fieldEmail");
+  const password = watch("fieldPassword");
+  const name = watch("name");
 
-  const handleSubmitForm = async (
-    data: LoginFormData,
-    e?: BaseSyntheticEvent
-  ) => {
-    e?.preventDefault();
-    // setLoading(true);
-    // await authLogin(data);
-    // setLoading(false);
+  const login = useCallback(async () => {
+    try {
+      await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+        callbackUrl: "/",
+      });
 
-    // if (response?.error === "Not found") {
-    //   displayToast.error(translate("invalidUser"));
-    // }
-    // if (response?.url) {
-    //   route.push(response?.url);
-    // }
-  };
+      router.push("/profiles");
+    } catch (error) {
+      console.log(error);
+    }
+  }, [email, password, router]);
+
+  const register = useCallback(async () => {
+    try {
+      console.log(email, name, password);
+      await fetch("/api/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          name,
+          password,
+        }),
+      });
+
+      login();
+    } catch (error) {
+      console.log(error);
+    }
+  }, [email, name, password, login]);
 
   const toggleVariant = useCallback(() => {
     setValue("register", isRegister === true ? false : true);
@@ -79,7 +103,7 @@ const Auth = () => {
               <span className="text-white text-4xl mb-6 font-semibold">
                 {!isRegister ? "Entrar" : "Registrar"}
               </span>
-              <form onSubmit={handleSubmit(handleSubmitForm)}>
+              <form>
                 <div className="flex flex-col gap-4">
                   {isRegister && (
                     <Input
@@ -111,21 +135,21 @@ const Auth = () => {
                   />
                 </div>
                 <button
-                  type="submit"
+                  onClick={!isRegister ? login : register}
                   className="bg-primary py-3 text-white rounded-sm w-full mt-10 hover:bg-orange-700 transition"
                 >
-                  Entrar
+                  {!isRegister ? "Entrar" : "Registrar"}
                 </button>
               </form>
               <div className="flex flex-row items-center gap-4 mt-8 justify-center">
                 <div
-                  onClick={() => console.log("a")}
+                  onClick={() => signIn("google", { callbackUrl: "/" })}
                   className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition"
                 >
                   <FcGoogle size={32} />
                 </div>
                 <div
-                  onClick={() => console.log("a")}
+                  onClick={() => signIn("github", { callbackUrl: "/" })}
                   className="w-10 h-10 bg-white rounded-full flex items-center justify-center cursor-pointer hover:opacity-80 transition"
                 >
                   <FaGithub size={32} />
